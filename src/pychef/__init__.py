@@ -4,7 +4,7 @@ Python utilities for iCHEF.
 Released under the MIT license.
 """
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 
 try:
     # pychef[aws] extra check

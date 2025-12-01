@@ -4,8 +4,10 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from pychef.aws.ecs.classes import (EcsClusterConfig, EcsDeployService,
-                                    EcsServiceConfig, EcsTaskDefinitionConfig)
+from pychef.aws.ecs.classes import (EcsClusterConfig,
+                                    EcsContainerDefinitionConfig,
+                                    EcsDeployService, EcsServiceConfig,
+                                    EcsTaskDefinitionConfig)
 
 
 @mock_aws
@@ -32,11 +34,10 @@ class TestEcsDeployService(TestCase):
             )["taskDefinition"]["taskDefinitionArn"]
         )
         # Prepare configs
+        self.ecs_container_definition = EcsContainerDefinitionConfig()
         self.ecs_task_definition = EcsTaskDefinitionConfig(
             family="test-family",
-            awslog_region="ap-northeast-1",
-            awslog_group="test-log-group",
-            awslog_stream="test-log-stream",
+            containers=[self.ecs_container_definition]
         )
         self.ecs_service = EcsServiceConfig(name="test-service", task_definition=self.ecs_task_definition)
         self.ecs_cluster = EcsClusterConfig(
@@ -46,21 +47,45 @@ class TestEcsDeployService(TestCase):
         )
         self.deploy_service = EcsDeployService(cluster=self.ecs_cluster, repo="repo/url", tag="v1")
 
-    def test_task_definition_post_init(self):
-        assert EcsTaskDefinitionConfig(
-            family="test-family",
-        ).generate_args("repo/url", "v1")["containerDefinitions"][0]["logConfiguration"]["options"] == {
-            "awslogs-group": "default",
-            "awslogs-region": "ap-northeast-1",
-            "awslogs-stream-prefix": "test-family",
+    def test_container_definition_post_init(self):
+        assert EcsContainerDefinitionConfig().generate_args("repo/url", "v1")["logConfiguration"] == {
+            "logDriver": "json-file",
+            "options": {
+                "max-file": "1",
+                "max-size": "10m"
+            }
         }
+
+    def test_container_definition_generate_args(self):
+        # Assert if image property given
+        assert self.ecs_container_definition.generate_args("repo/url", "v1")["environment"] == [
+            {
+                "name": "IMAGE_REPOSITORY",
+                "value": "repo/url"
+            },
+            {
+                "name": "IMAGE_TAG",
+                "value": "v1"
+            }
+        ]
+        self.ecs_container_definition.image = "repo/url:v2"
+        assert self.ecs_container_definition.generate_args("repo/url", "v1")["environment"] == [
+            {
+                "name": "IMAGE_REPOSITORY",
+                "value": "repo/url"
+            },
+            {
+                "name": "IMAGE_TAG",
+                "value": "v2"
+            }
+        ]
 
     def test_task_definition_generate_args(self):
         assert self.ecs_task_definition.generate_args("repo/url", "v1") == {
             "containerDefinitions": [
                 {
                     "command": [],
-                    "cpu": 256,
+                    "cpu": 128,
                     "environment": [
                         {
                             "name": "IMAGE_REPOSITORY",
@@ -74,18 +99,18 @@ class TestEcsDeployService(TestCase):
                     "essential": True,
                     "image": "repo/url:v1",
                     "logConfiguration": {
-                        "logDriver": "awslogs",
+                        "logDriver": "json-file",
                         "options": {
-                            "awslogs-group": "test-log-group",
-                            "awslogs-region": "ap-northeast-1",
-                            "awslogs-stream-prefix": "test-log-stream",
+                            "max-file": "1",
+                            "max-size": "10m",
                         },
                     },
-                    "memoryReservation": 512,
+                    "memoryReservation": 256,
                     "mountPoints": [],
                     "name": "app",
                     "portMappings": [],
                     "secrets": [],
+                    "links": [],
                 },
             ],
             "executionRoleArn": "",

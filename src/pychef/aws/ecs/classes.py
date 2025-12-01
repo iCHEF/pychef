@@ -6,48 +6,98 @@ import boto3
 
 
 @dataclass
+class EcsContainerDefinitionConfig:
+    """
+    Represents a configuration for generating an AWS ECS container definition.
+
+    Attributes:
+        name (str): Container name.
+        cpu (int): CPU units reserved for the container.
+        memory_reservation (int): MemoryReservation (MiB) for the container.
+        image (str): Image for the container, will override repo, tag parameters in generate_args.
+        commands (List[str]): List of command-line arguments passed to the container.
+        port_mappings (List[dict]): Container port mapping definitions.
+        environments (List[Dict[str, str]]): List of environment variable definitions.
+        secrets (List[Dict[str, str]]): List of secret environment variable definitions.
+        log_configuration (dict): Log configuration for the container.
+        mounts (List[dict]): List of mount points for the container.
+        links (List[str]): List of connected container name.
+        essential: Whether the container is essential or not.
+    """
+    name: str = "app"
+    cpu: int = 128
+    memory_reservation: int = 256
+    image: str = ""
+    commands: List[str] = field(default_factory=list)
+    port_mappings: List[dict] = field(default_factory=list)
+    environments: List[Dict[str, str]] = field(default_factory=list)
+    secrets: List[Dict[str, str]] = field(default_factory=list)
+    log_configuration: dict = field(default_factory=dict)
+    mounts: List[dict] = field(default_factory=list)
+    links: List[str] = field(default_factory=list)
+    essential: bool = True
+
+    def __post_init__(self):
+        # Provide a default log configuration
+        if not self.log_configuration:
+            self.log_configuration = {
+                "logDriver": "json-file",
+                "options": {
+                    "max-size": "10m",
+                    "max-file": "1"
+                }
+            }
+
+    def generate_args(self, repo: str, tag: str) -> dict:
+        environments = self.environments.copy()
+        if self.image:
+            repo, tag = self.image.split(":")
+        environments += [
+            {
+                "name": "IMAGE_REPOSITORY",
+                "value": repo,
+            },
+            {
+                "name": "IMAGE_TAG",
+                "value": tag,
+            },
+        ]
+        return {
+            "name": self.name,
+            # Only image URL are dynamic in each deployment
+            "image": self.image if self.image else f"{repo}:{tag}",
+            "essential": self.essential,
+            "cpu": self.cpu,
+            "memoryReservation": self.memory_reservation,
+            "portMappings": self.port_mappings,
+            "command": self.commands,
+            "environment": environments,
+            "secrets": self.secrets,
+            "mountPoints": self.mounts,
+            "logConfiguration": self.log_configuration,
+            "links": self.links
+        }
+
+
+@dataclass
 class EcsTaskDefinitionConfig:
     """
     Represents a configuration for generating an AWS ECS task definition.
 
     Attributes:
         family (str): The ECS task family name .
-        name (str): Container name.
-        cpu (int): CPU units reserved for the container.
-        memory_reservation (int): MemoryReservation (MiB) for the container.
         task_role_arn (str): IAM role ARN that the task assumes.
         execution_role_arn (str): IAM role ARN used by ECS agent for image pulls and log creation.
         network_mode (str): Docker networking mode (e.g., "bridge", "awsvpc").
-        commands (List[str]): List of command-line arguments passed to the container.
-        port_mappings (List[dict]): Container port mapping definitions.
-        volumes (Dict[str, dict]): Mapping of container mount paths to ECS volume definitions.
-        secrets (List[Dict[str, str]]): List of secret environment variable definitions.
-        environments (List[Dict[str, str]]): List of environment variable definitions.
-        awslog_region (str): AWS region for CloudWatch log, default to "AWS_DEFAULT_REGION" in environment variables.
-        awslog_group (str): CloudWatch log group name.
-        awslog_stream (str): CloudWatch log stream prefix, falls back to `family`.
+        volumes (List[dict]): List of volumes for ECS container definitions.
+        containers: (List[EcsContainerDefinitionConfig]): List of ECS container definitions.
     """
     family: str
-    name: str = "app"
-    cpu: int = 256
-    memory_reservation: int = 512
     task_role_arn: str = ""
     execution_role_arn: str = ""
     network_mode: str = "bridge"
-    commands: List[str] = field(default_factory=list)
-    port_mappings: List[dict] = field(default_factory=list)
-    volumes: Dict[str, dict] = field(default_factory=dict)
-    secrets: List[Dict[str, str]] = field(default_factory=list)
-    environments: List[Dict[str, str]] = field(default_factory=list)
-    awslog_region: str = ""
-    awslog_group: str = "default"
-    awslog_stream: str = ""
-
-    def __post_init__(self):
-        if not self.awslog_stream:
-            self.awslog_stream = self.family
-        if not self.awslog_region:
-            self.awslog_region = os.environ.get("AWS_DEFAULT_REGION", "")
+    volumes: List[dict] = field(default_factory=list)
+    containers: List[EcsContainerDefinitionConfig] = field(default_factory=list)
 
     def generate_args(self, repo: str, tag: str) -> dict:
         """
@@ -60,53 +110,14 @@ class EcsTaskDefinitionConfig:
             Returns:
                 dict: A ECS task definition arguments.
         """
-        environments = self.environments + [
-            {
-                "name": "IMAGE_REPOSITORY",
-                "value": repo,
-            },
-            {
-                "name": "IMAGE_TAG",
-                "value": tag,
-            },
-        ]
         return {
             "family": self.family,
-            "volumes": [volume for volume in self.volumes.values()],
+            "volumes": self.volumes,
             "taskRoleArn": self.task_role_arn,
             "executionRoleArn": self.execution_role_arn,
             "networkMode": self.network_mode,
             "runtimePlatform": {"operatingSystemFamily": "LINUX"},
-            "containerDefinitions": [
-                {
-                    "name": self.name,
-                    # Only image URL are dynamic in each deployment
-                    "image": f"{repo}:{tag}",
-                    "essential": True,
-                    "cpu": self.cpu,
-                    "memoryReservation": self.memory_reservation,
-                    "portMappings": self.port_mappings,
-                    "command": self.commands,
-                    "environment": environments,
-                    "secrets": self.secrets,
-                    "mountPoints": [
-                        {
-                            "containerPath": path,
-                            "sourceVolume": volume["name"],
-                        }
-                        for path, volume in self.volumes.items()
-                    ],
-                    # Currently support CloudWatch Logs only
-                    "logConfiguration": {
-                        "logDriver": "awslogs",
-                        "options": {
-                            "awslogs-region": self.awslog_region,
-                            "awslogs-group": self.awslog_group,
-                            "awslogs-stream-prefix": self.awslog_stream,
-                        },
-                    },
-                },
-            ],
+            "containerDefinitions": [container.generate_args(repo, tag) for container in self.containers]
         }
 
 
