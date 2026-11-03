@@ -9,7 +9,7 @@ clear:
 	rm -rf dist/
 
 init-environment:
-	uv venv .venv --python=3.11.9
+	uv venv .venv --python=3.11.18
 
 compile-dependencies:
 	uv pip compile --no-strip-extras --output-file=requirements/dev.compiled.txt requirements/dev.txt

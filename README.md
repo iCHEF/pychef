@@ -5,7 +5,7 @@ Python utilities for iCHEF.
 ## Development
 
 ### Prerequisites
-- uv
+- uv >= 0.13.4（憑證清單安全更新的門檻；`uv self update` 或 `pip install -U uv==0.13.6`）
 - AWS CLI
 
 ### Setup
