@@ -5,7 +5,7 @@ Python utilities for iCHEF.
 ## Development
 
 ### Prerequisites
-- uv >= 0.13.4（憑證清單安全更新的門檻；`uv self update` 或 `pip install -U uv==0.13.6`）
+- uv >= 0.13.6（0.13.6 起才下載得到 CPython 3.11.18，且含 eMudhra 憑證拒絕清單；`uv self update` 或 `pip install -U uv==0.13.6`）
 - AWS CLI
 
 ### Setup
