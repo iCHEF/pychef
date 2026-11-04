@@ -17,7 +17,7 @@ make sync-dependencies-dev
 ```
 
 ### Upgrading Python
-Bump `PYTHON_VERSION` in the `Makefile`, then rebuild `.venv` with it:
+When `PYTHON_VERSION` in the `Makefile` changes (bumped by you or pulled from upstream), rebuild `.venv`:
 ```bash
 make upgrade-python
 pre-commit clean  # rebuild pre-commit hook environments on the new Python
