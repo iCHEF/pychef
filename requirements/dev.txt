@@ -5,3 +5,4 @@ pre-commit==4.3.0
 build==1.3.0
 pytest-cov==7.0.0
 certifi>=2026.10.19  # eMudhra CA incident (2026-10); transitive via requests (moto)
+virtualenv>=21.14.12  # pre-commit hook envs: bundles pip 26.2.2 (vendored certifi 2026.10.19)
