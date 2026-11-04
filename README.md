@@ -16,6 +16,13 @@ source .venv/bin/activate
 make sync-dependencies-dev
 ```
 
+### Upgrading Python
+Bump `PYTHON_VERSION` in the `Makefile`, then rebuild `.venv` with it:
+```bash
+make upgrade-python
+pre-commit clean  # rebuild pre-commit hook environments on the new Python
+```
+
 ### Available Commands
 ```bash
 # Build package locally
