@@ -20,6 +20,8 @@ upgrade-python:
 compile-dependencies:
 	uv pip compile --no-strip-extras --python-version=$(PYTHON_VERSION) --output-file=requirements/dev.compiled.txt requirements/dev.txt
 
+# Syncs into the active venv (or ./.venv) without checking its Python version.
+# After bumping PYTHON_VERSION, run `make upgrade-python` instead.
 sync-dependencies-dev:
 	uv pip sync requirements/dev.compiled.txt
 
