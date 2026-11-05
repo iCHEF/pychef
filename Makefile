@@ -15,7 +15,7 @@ init-environment:
 
 upgrade-python:
 	uv venv .venv --clear --python=$(PYTHON_VERSION)
-	uv pip sync requirements/dev.compiled.txt
+	uv pip sync --python .venv/bin/python requirements/dev.compiled.txt
 
 compile-dependencies:
 	uv pip compile --no-strip-extras --python-version=$(PYTHON_VERSION) --output-file=requirements/dev.compiled.txt requirements/dev.txt
