@@ -1,3 +1,5 @@
+PYTHON_VERSION := 3.11.18
+
 build:
 	python -m build
 
@@ -9,11 +11,17 @@ clear:
 	rm -rf dist/
 
 init-environment:
-	uv venv .venv --python=3.11.9
+	uv venv .venv --python=$(PYTHON_VERSION)
+
+upgrade-python:
+	uv venv .venv --clear --python=$(PYTHON_VERSION)
+	uv pip sync --python .venv/bin/python requirements/dev.compiled.txt
 
 compile-dependencies:
-	uv pip compile --no-strip-extras --output-file=requirements/dev.compiled.txt requirements/dev.txt
+	uv pip compile --no-strip-extras --python-version=$(PYTHON_VERSION) --output-file=requirements/dev.compiled.txt requirements/dev.txt
 
+# Syncs into the active venv (or ./.venv) without checking its Python version.
+# After bumping PYTHON_VERSION, run `make upgrade-python` instead.
 sync-dependencies-dev:
 	uv pip sync requirements/dev.compiled.txt
 
